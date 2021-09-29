@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup Label="Globals">
+    <SccProjectName>SAK</SccProjectName>
+    <SccProvider>SAK</SccProvider>
+    <SccAuxPath>SAK</SccAuxPath>
+    <SccLocalPath>SAK</SccLocalPath>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="FabricationGrey\**" />
+    <Compile Remove="FabricationProduction\**" />
+    <Compile Remove="FabricationUtilities\**" />
+    <Compile Remove="PayRollUtilties\**" />
+    <EmbeddedResource Remove="FabricationGrey\**" />
+    <EmbeddedResource Remove="FabricationProduction\**" />
+    <EmbeddedResource Remove="FabricationUtilities\**" />
+    <EmbeddedResource Remove="PayRollUtilties\**" />
+    <None Remove="FabricationGrey\**" />
+    <None Remove="FabricationProduction\**" />
+    <None Remove="FabricationUtilities\**" />
+    <None Remove="PayRollUtilties\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Http.Features" Version="5.0.7" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Inventory\Sale\" />
+  </ItemGroup>
+
+</Project>
