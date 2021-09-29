@@ -52,5 +52,24 @@ namespace ServicesLayer.Services.Implementations
             return IsUserExist;
         }
 
+        public User GetUserById(User User)
+        {
+            var IsUserExist = dbContext.ut_user
+                .Where(x => x.user_id == User.Id)
+                .Select(x => new User()
+                {
+                    Id = x.user_id,
+                    UserName = x.user_name,
+                    Email = x.email,
+                    Mobile = x.mobile
+                }).FirstOrDefault();
+
+            if (IsUserExist == null)
+            {
+                return new User();
+            }
+            return IsUserExist;
+        }
+
     }
 }

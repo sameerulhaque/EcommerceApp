@@ -21,6 +21,8 @@ using BuissnessLayer.Helpers;
 using ServicesLayer.Services.Interfaces;
 using BuissnessLayer.Repositories.Interfaces;
 using Microsoft.AspNetCore.Hosting;
+using Newtonsoft.Json;
+using Commons.Response;
 
 namespace EcommerceApp.Controllers
 {
@@ -29,92 +31,75 @@ namespace EcommerceApp.Controllers
     public class UserApiController : ControllerBase
     {
         private readonly IUserService _IUserService;
-        public UserApiController(IUserService IUserService)
+        private IConfiguration _config;
+        public UserApiController(IUserService IUserService, IConfiguration config)
         {
             _IUserService = IUserService;
+            _config = config;
         }
 
-        [AllowAnonymous]
-        [HttpPost("Authenticate")]
-        public IActionResult Authenticate([FromBody] User userParam)
+        private UserAuth GenerateJSONWebToken(User Response)
         {
-            var user = UserAuthenticate(userParam);
-            if (user != null)
+            var securityKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["AppSettings:Key"]));
+            var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256);
+
+            var permClaims = new List<Claim>();
+            permClaims.Add(new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()));
+            permClaims.Add(new Claim("UserId", Response.Id.ToString()));
+            permClaims.Add(new Claim("Email", Response.Email));
+            permClaims.Add(new Claim(ClaimTypes.Name, Response.UserName));
+            permClaims.Add(new Claim("LoggedOn", DateTime.Now.ToString()));
+
+            List<string> list = Response.UserRoles.Select(x => x.WebPageName).ToList();
+            foreach (var item in list)
             {
-                return Ok(user);
+                if (item == null) { continue; }
+                permClaims.Add(new Claim(ClaimTypes.Role, item));
+            }
+
+            var token = new JwtSecurityToken(_config["AppSettings:Issuer"],
+                _config["AppSettings:Issuer"],
+                permClaims,
+                expires: DateTime.Now.AddDays(1),
+                signingCredentials: credentials);
+
+            UserAuth userAuth = new UserAuth();
+            userAuth.accessToken = new JwtSecurityTokenHandler().WriteToken(token);
+            userAuth.refreshToken = userAuth.accessToken;
+            userAuth.expiresIn = DateTime.Now.AddDays(1);
+            return userAuth;
+        }
+        [HttpPost("Authenticate")]
+        public IActionResult Authenticate([FromBody] object request)
+        {
+            var Gen_User = JsonConvert.DeserializeObject<User>(request.ToString());
+            var Results = _IUserService.SignIn(Gen_User);
+            var Response = (User)Results.ThisClassList.FirstOrDefault();
+            if (Response == null)
+            {
+                return Forbid();
             }
             else
             {
-                user = new UserAuth();
-                return Ok(user);
+                var UserAuth = GenerateJSONWebToken(Response);
+                return Ok(UserAuth);
             }
         }
 
         [HttpGet("GetUserByToken")]
         public IActionResult GetUserByToken()
         {
-            //var user = manager.GetAllUsers(new User() { Email = User.Identity.Name });
-            User user = new User();
-            user.Id = 1;
-            user.UserName = "Sameer";
-            user.Email = "Admin";
-            user.Roles = new List<int> { 1 };
-            user.FullName = "Sameer";
-            if (user != null)
+            var UserId = User.FindFirstValue("UserId");
+            var Results = _IUserService.GetUserById(new User() { Id = int.Parse(UserId) });
+            var Response = (User)Results.ThisClassList.FirstOrDefault();
+            if (Response == null)
             {
-                return Ok(user);
+                return Ok(new ApiResponse() { IsSuccess = false, Message = "Some Error Occured" });
             }
             else
             {
-                user = new User();
-                return Ok(user);
+                return Ok(new ApiResponse() { Result = Response, IsSuccess = true, Message = "Request Successful" });
             }
-        }
-
-        public UserAuth UserAuthenticate(User User)
-        {
-            User user = new User();
-            user = _IUserService.SignIn(User);
-            if (user.Id == 0)
-                return null;
-
-            var permClaims = new List<Claim>();
-            permClaims.Add(new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()));
-            permClaims.Add(new Claim("valid", "1"));
-            permClaims.Add(new Claim("UserId", user.Id.ToString()));
-            permClaims.Add(new Claim(ClaimTypes.Name, user.Email));
-            permClaims.Add(new Claim("UserName", user.UserName));
-            permClaims.Add(new Claim("Name", user.Email));
-            permClaims.Add(new Claim("LoggedOn", DateTime.Now.ToString()));
-
-
-            List<string> list = user.UserRoles.Select(x => x.WebPageName).ToList();
-            foreach (var item in list)
-            {
-                if (item == null)
-                {
-                    continue;
-                }
-                permClaims.Add(new Claim(ClaimTypes.Role, item));
-            }
-            var tokenHandler = new JwtSecurityTokenHandler();
-            string Secret = "my_secret_key_12345";
-            var key = Encoding.ASCII.GetBytes(/*_appSettings.*/Secret);
-            var tokenDescriptor = new SecurityTokenDescriptor
-            {
-                Subject = new ClaimsIdentity(permClaims),
-                Expires = DateTime.UtcNow.AddDays(1),
-                SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
-            };
-            var token = tokenHandler.CreateToken(tokenDescriptor);
-            user.Token = tokenHandler.WriteToken(token);
-
-
-            UserAuth userAuth = new UserAuth();
-            userAuth.accessToken = new JwtSecurityTokenHandler().WriteToken(token);
-            userAuth.refreshToken = new JwtSecurityTokenHandler().WriteToken(token);
-            userAuth.expiresIn = DateTime.Now.AddDays(1);
-            return userAuth;
         }
     }
     

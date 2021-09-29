@@ -63,32 +63,26 @@ namespace EcommerceApp
             services.AddDbContext<AccessLayer.EF.ecommerceContext>(options => options.UseSqlServer(connection));
 
 
-
-
-
-
-            var key = Encoding.ASCII.GetBytes(appSettings.Secret);
-            services.AddAuthentication(x =>
-            {
-                x.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-                x.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-            })
-            .AddJwtBearer(x =>
-            {
-                x.RequireHttpsMetadata = false;
-                x.SaveToken = true;
-                x.TokenValidationParameters = new TokenValidationParameters
-                {
-                    ValidateIssuerSigningKey = true,
-                    IssuerSigningKey = new SymmetricSecurityKey(key),
-                    ValidateIssuer = false,
-                    ValidateAudience = false
-                };
-            });
+            services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+          .AddJwtBearer(options =>
+          {
+              options.TokenValidationParameters = new TokenValidationParameters
+              {
+                  ValidateIssuer = true,
+                  ValidateAudience = true,
+                  ValidateLifetime = true,
+                  ValidateIssuerSigningKey = true,
+                  ValidIssuer = Configuration["AppSettings:Issuer"],
+                  ValidAudience = Configuration["AppSettings:Issuer"],
+                  IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(Configuration["AppSettings:Key"]))
+              };
+          });
+            services.AddMvc();
 
             // configure DI for application services
             //services.AddScoped<IBaseContext, BaseContext>();
             services.AddScoped<IBaseRepo, BaseRepo>();
+            services.AddTransient<IUserService, UserService>();
             services.AddTransient<IProductService, ProductService>();
             services.AddTransient<IOrderService, OrderService>();
 
@@ -124,7 +118,6 @@ namespace EcommerceApp
             app.UseRouting();
 
             app.UseAuthorization();
-            //app.UseFastReport();
 
             app.UseEndpoints(endpoints =>
             {

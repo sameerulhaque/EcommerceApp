@@ -9,5 +9,6 @@ namespace ServicesLayer.Services.Interfaces
     public interface IUserService
     {
         public User SignIn(User User);
+        public User GetUserById(User User);
     }
 }
